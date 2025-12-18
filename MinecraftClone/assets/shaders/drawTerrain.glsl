@@ -1,5 +1,6 @@
 #type vertex
 #version 460 core
+#extension GL_ARB_shader_draw_parameters : require
 #includeGlobalSource
 layout(std430, binding = 0) readonly buffer buffer0
 {

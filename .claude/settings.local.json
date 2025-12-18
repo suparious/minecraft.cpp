@@ -8,7 +8,9 @@
       "Bash(ls:*)",
       "Bash(git submodule add:*)",
       "Bash(cmake:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(echo:*)",
+      "Bash(glxinfo:*)"
     ]
   }
 }
