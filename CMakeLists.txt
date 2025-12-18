@@ -101,6 +101,7 @@ target_include_directories(raudio PUBLIC
 # raudio needs these defines
 target_compile_definitions(raudio PRIVATE
     RAUDIO_STANDALONE
+    SUPPORT_MODULE_RAUDIO
     SUPPORT_FILEFORMAT_WAV
     SUPPORT_FILEFORMAT_OGG
     SUPPORT_FILEFORMAT_MP3
@@ -224,6 +225,8 @@ target_include_directories(MinecraftClone PRIVATE
 
 target_link_libraries(MinecraftClone PRIVATE
     VoxelEngine
+    raudio
+    m
 )
 
 # ==============================================================================

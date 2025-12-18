@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /mnt/c/Users/shaun/scratch-space/VoxelEngine/VoxelEngine/vendor/GLFW log --oneline -10)",
+      "Bash(git -C /mnt/c/Users/shaun/scratch-space/VoxelEngine/VoxelEngine/vendor/imgui log --oneline -10)",
+      "Bash(git -C /mnt/c/Users/shaun/scratch-space/VoxelEngine/VoxelEngine/vendor/glm log --oneline -10)",
+      "Bash(git -C /mnt/c/Users/shaun/scratch-space/VoxelEngine/VoxelEngine/vendor/tracy log --oneline -10)",
+      "Bash(ls:*)",
+      "Bash(git submodule add:*)",
+      "Bash(cmake:*)",
+      "Bash(git checkout:*)"
+    ]
+  }
+}
