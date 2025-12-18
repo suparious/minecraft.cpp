@@ -1,0 +1,18 @@
+[submodule "VoxelEngine/vendor/spdlog"]
+	path = VoxelEngine/vendor/spdlog
+	url = https://github.com/gabime/spdlog
+[submodule "VoxelEngine/vendor/GLFW"]
+	path = VoxelEngine/vendor/GLFW
+	url = https://github.com/glfw/glfw
+[submodule "VoxelEngine/vendor/imgui"]
+	path = VoxelEngine/vendor/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "VoxelEngine/vendor/glm"]
+	path = VoxelEngine/vendor/glm
+	url = https://github.com/g-truc/glm
+[submodule "VoxelEngine/vendor/tracy"]
+	path = VoxelEngine/vendor/tracy
+	url = https://github.com/wolfpld/tracy
+[submodule "VoxelEngine/vendor/raudio"]
+	path = VoxelEngine/vendor/raudio
+	url = https://github.com/raysan5/raudio

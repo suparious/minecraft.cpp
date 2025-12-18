@@ -1,0 +1,174 @@
+#type compute
+#version 430 core
+#includeGlobalSource
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+struct Node{
+uint localIndex3D;
+uint chunkIndex3D;
+uint chunkIndex;
+uint previousValue;
+};
+struct Queue{
+	Node nodes[63];
+};
+
+layout(std430, binding = 0) buffer buffer0 
+{
+	Chunk chunksData[]; 
+};
+layout(std430, binding = 6) buffer buffer6
+{
+	TntEntity tnts[];
+};
+layout(std430, binding = 7) buffer buffer7
+{
+	Queue chunksQueue[]; 
+};
+layout(std430, binding = 8) buffer buffer8
+{
+	bool shouldRedrawWorld; 
+};
+
+layout(std430, binding = 9) buffer buffer9
+{
+	bool shouldRedrawChunk[]; 
+};
+layout(std430, binding = 11) buffer buffer11
+{
+	bool doesCurrentFrameHaveExplosion; 
+};
+
+uniform vec3 u_Offset;
+
+ivec3 offsets[6] = ivec3[6](
+    ivec3(0, 1, 0),
+    ivec3(0, -1, 0),
+    ivec3(1, 0, 0),
+    ivec3(-1, 0, 0),
+    ivec3(0, 0, 1),
+    ivec3(0, 0, -1)
+);
+uint startingChunkX = (gl_WorkGroupID.x)*2+uint(u_Offset.x);
+uint startingChunkY = (gl_WorkGroupID.y)*2+uint(u_Offset.y);
+uint startingChunkZ = (gl_WorkGroupID.z)*2+uint(u_Offset.z);
+
+//Hash function from David Hoskins https://jakerunzer.com/posts/shader-hash-functions
+float hash13(vec3 p3)
+{
+	p3  = fract(p3 * .1031);
+    p3 += dot(p3, p3.zyx + 31.32);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+#line 0
+void propagateExplosion(uint chunkIndex, int x, int y, int z){
+	shouldRedrawWorld = true;
+	uint queueIndex = gl_WorkGroupID.x+gl_WorkGroupID.y*HALF_WORLD_WIDTH+gl_WorkGroupID.z*HALF_WORLD_WIDTH*HALF_WORLD_HEIGHT;
+	Queue queue = chunksQueue[queueIndex];
+	int front = 0;
+	int back = 0;
+	uint tntIndex = chunksData[chunkIndex].explosions[x][y][z]>>3;
+	queue.nodes[back++] = Node(x | y<<4 | z <<8,startingChunkX | startingChunkY<<7 | startingChunkZ <<14,chunkIndex,tntIndex<<3|(TNT_EXPLOSION_STRENGTH+1));
+	while(front<back){
+		Node node = queue.nodes[front++];
+		uint x = bitfieldExtract(node.localIndex3D,0,4);
+		uint y = bitfieldExtract(node.localIndex3D,4,4);
+		uint z = bitfieldExtract(node.localIndex3D,8,4);
+
+		uint chunkX = bitfieldExtract(node.chunkIndex3D,0,7);
+		uint chunkY = bitfieldExtract(node.chunkIndex3D,7,7);
+		uint chunkZ = bitfieldExtract(node.chunkIndex3D,14,7);
+
+		uint chunkIndex = node.chunkIndex;
+		shouldRedrawChunk[chunkIndex] = true;
+		// If block is on the edge, flag the neighboring chunk(s)
+		if (x == 0 && chunkX > 0)
+			shouldRedrawChunk[getChunkIndex(chunkX - 1, chunkY, chunkZ)] = true;
+		else if (x == CHUNK_SIDE_LENGTH - 1)
+			shouldRedrawChunk[getChunkIndex(chunkX + 1, chunkY, chunkZ)] = true;
+
+		if (y == 0 && chunkY > 0 && chunkY<=WORLD_HEIGHT)
+			shouldRedrawChunk[getChunkIndex(chunkX, chunkY - 1, chunkZ)] = true;
+		else if (y == CHUNK_SIDE_LENGTH - 1)
+			shouldRedrawChunk[getChunkIndex(chunkX, chunkY + 1, chunkZ)] = true;
+
+		if (z == 0 && chunkZ > 0)
+			shouldRedrawChunk[getChunkIndex(chunkX, chunkY, chunkZ - 1)] = true;
+		else if (z == CHUNK_SIDE_LENGTH - 1)
+			shouldRedrawChunk[getChunkIndex(chunkX, chunkY, chunkZ + 1)] = true;
+
+		int blockType = int(chunksData[chunkIndex].blockTypes[x][y][z]);
+		if(blockType == tnt_block){
+			vec3 blockOrigin = vec3(chunkX*CHUNK_SIDE_LENGTH+x,chunkY*CHUNK_SIDE_LENGTH+y,chunkZ*CHUNK_SIDE_LENGTH+z);	
+			int relX = int(blockOrigin.x - TNT_MIN_X);
+			int relY = int(blockOrigin.y - TNT_MIN_Y);
+			int relZ = int(blockOrigin.z - TNT_MIN_Z);
+
+			int tntIndex = relY * TNT_SIDE_LENGTH * TNT_SIDE_LENGTH + relZ * TNT_SIDE_LENGTH + relX;
+			tnts[tntIndex].position = blockOrigin;
+			tnts[tntIndex].velocity = vec3(0,5,0);
+			tnts[tntIndex].visible = true;
+			tnts[tntIndex].justBlewUp = true;
+			tnts[tntIndex].secondsUntilExplode = 0.5+hash13(blockOrigin);
+		}
+		if(blockType!=bedrock_block){
+			chunksData[chunkIndex].blockTypes[x][y][z] = 0;
+		}
+		uint explosionValue = bitfieldExtract(node.previousValue,0,3)-1;
+		uint tntIndex = node.previousValue>>3;
+		chunksData[chunkIndex].explosions[x][y][z] = tntIndex<<3|explosionValue;
+
+		ivec3 blockLocalPosition = ivec3(x,y,z);
+
+		if(explosionValue>1){
+			for(int n = 0;n<6;n++){
+				ivec3 neighbourPos = blockLocalPosition + offsets[n];
+				ivec3 neighbourChunkOffset = ivec3(0);
+
+				// Handle boundaries
+				if (neighbourPos.x < 0) { neighbourPos.x = CHUNK_SIDE_LENGTH - 1; neighbourChunkOffset.x = -1; }
+				else if (neighbourPos.x >= CHUNK_SIDE_LENGTH) { neighbourPos.x = 0; neighbourChunkOffset.x = 1; }
+				if (neighbourPos.y < 0) { neighbourPos.y = CHUNK_SIDE_LENGTH - 1; neighbourChunkOffset.y = -1; }
+				else if (neighbourPos.y >= CHUNK_SIDE_LENGTH) { neighbourPos.y = 0; neighbourChunkOffset.y = 1; }
+				if (neighbourPos.z < 0) { neighbourPos.z = CHUNK_SIDE_LENGTH - 1; neighbourChunkOffset.z = -1; }
+				else if (neighbourPos.z >= CHUNK_SIDE_LENGTH) { neighbourPos.z = 0; neighbourChunkOffset.z = 1; }
+
+				uvec3 neighbourChunk3DIndex = uvec3( chunkX + neighbourChunkOffset.x,
+									chunkY + neighbourChunkOffset.y,
+									chunkZ + neighbourChunkOffset.z
+									);	
+
+				if(!(neighbourChunk3DIndex.x>=WORLD_WIDTH ||neighbourChunk3DIndex.y>=WORLD_HEIGHT ||neighbourChunk3DIndex.z>=WORLD_WIDTH ||
+				neighbourChunk3DIndex.x<0 ||neighbourChunk3DIndex.y<0 ||neighbourChunk3DIndex.z<0)){
+					uint neighbourChunkIndex = neighbourChunk3DIndex.x
+										 + neighbourChunk3DIndex.y * WORLD_WIDTH
+										 + neighbourChunk3DIndex.z * WORLD_WIDTH * WORLD_HEIGHT;
+					if(bitfieldExtract(chunksData[neighbourChunkIndex].explosions[neighbourPos.x][neighbourPos.y][neighbourPos.z],0,3) < explosionValue-1){
+						chunksData[neighbourChunkIndex].explosions[neighbourPos.x][neighbourPos.y][neighbourPos.z] = explosionValue-1;
+						queue.nodes[back++] = Node(neighbourPos.x | neighbourPos.y<<4 | neighbourPos.z <<8,neighbourChunk3DIndex.x | neighbourChunk3DIndex.y<<7 | neighbourChunk3DIndex.z <<14,neighbourChunkIndex,tntIndex<<3|explosionValue);
+					}
+				}
+			}
+		}
+	}
+}
+
+void main() {
+	uint chunkIndex = startingChunkX+startingChunkY*WORLD_WIDTH+startingChunkZ*WORLD_WIDTH*WORLD_HEIGHT;
+	if(!chunksData[chunkIndex].hasExplosion){
+		return;
+	}
+	doesCurrentFrameHaveExplosion = true; 
+	for(int x=0;x<CHUNK_SIDE_LENGTH;x++){
+		for(int z=0;z<CHUNK_SIDE_LENGTH;z++){
+			for(int y=0;y<CHUNK_SIDE_LENGTH;y++){
+				uint explosionValue = bitfieldExtract(chunksData[chunkIndex].explosions[x][y][z],0,3);
+				if(explosionValue==TNT_EXPLOSION_STRENGTH){
+					propagateExplosion(chunkIndex,x,y,z);
+				}
+			}
+		}
+	}
+}

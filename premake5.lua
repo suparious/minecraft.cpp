@@ -1,0 +1,156 @@
+workspace "VoxelEngine"
+	architecture "x64"
+	configurations
+	{
+		"Debug",
+		"Release",
+		"Dist"
+	}
+	startproject "MinecraftClone"
+
+outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
+
+-- Include directories relative to root folder (solution directory)
+IncludeDir = {}
+IncludeDir["GLFW"] = "VoxelEngine/vendor/GLFW/include"
+IncludeDir["GLAD"] = "VoxelEngine/vendor/GLAD/include"
+IncludeDir["ImGui"] = "VoxelEngine/vendor/ImGui"
+IncludeDir["glm"] = "VoxelEngine/vendor/glm"
+IncludeDir["stb_image"] = "VoxelEngine/vendor/stb_image"
+IncludeDir["tracy"] = "VoxelEngine/vendor/tracy/public"
+IncludeDir["raudio"] = "VoxelEngine/vendor/raudio/src"
+
+group "Dependencies"
+	include "VoxelEngine/vendor-build/GLFW.lua"
+	include "VoxelEngine/vendor/GLAD"
+	include "VoxelEngine/vendor-build/ImGui.lua"
+	include "VoxelEngine/vendor-build/tracy.lua"
+	include "VoxelEngine/vendor-build/raudio.lua"
+group ""
+
+
+project "VoxelEngine"
+	location "VoxelEngine"
+	kind "StaticLib"
+	language "C++"
+	cppdialect "C++23"
+	buildoptions{"/utf-8"}
+	staticruntime "on"
+
+	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
+	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
+
+	pchheader "pch.h"
+	pchsource "VoxelEngine/src/pch.cpp"
+
+	files
+	{
+		"%{prj.name}/src/**.h",
+		"%{prj.name}/src/**.cpp",
+		"%{prj.name}/vendor/glm/glm/**.hpp",
+		"%{prj.name}/vendor/glm/glm/**.inl",
+		"%{prj.name}/vendor/stb_image/**.cpp",
+		"%{prj.name}/vendor/stb_image/**.h",
+		"%{prj.name}/vendor/tracy/public/TracyClient.cpp",
+	}
+
+	defines
+	{
+		"_CRT_SECURE_NO_WARNINGS"
+	}
+
+	includedirs
+	{
+		"%{prj.name}/src",
+		"%{prj.name}/vendor/spdlog/include",
+		"%{IncludeDir.GLFW}",
+		"%{IncludeDir.GLAD}",
+		"%{IncludeDir.ImGui}",
+		"%{IncludeDir.glm}",
+		"%{IncludeDir.stb_image}",
+		"%{IncludeDir.tracy}",
+		"%{IncludeDir.raudio}",
+	}
+
+	links{
+		"GLFW",
+		"GLAD",
+		"ImGui",
+		"tracy",
+		"raudio",
+		"opengl32.lib"
+	}
+	filter { "%{prj.name}/vendor/tracy/public/TracyClient.cpp" }
+		flags { "NoPCH" }
+	filter "system:windows"
+		systemversion "latest"
+
+		defines
+		{
+			"VE_PLATFORM_WINDOWS",
+			"VE_BUILD_DLL",
+			"GLFW_INCLUDE_NONE"
+		}
+	filter "configurations:Debug"
+		defines {"VE_DEBUG"}
+		runtime "Debug"
+		symbols "on"
+	filter "configurations:Release"
+		defines {"VE_RELEASE"}
+		runtime "Release"
+		optimize "on"
+	filter "configurations:Dist"
+		defines {"VE_DIST"}
+		runtime "Release"
+		optimize "on"
+
+project "MinecraftClone"
+	location "MinecraftClone"
+	kind "ConsoleApp"
+	language "C++"
+	cppdialect "C++23"
+	buildoptions{"/utf-8"}
+	staticruntime "on"
+
+	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
+	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
+	files
+	{
+		"%{prj.name}/src/**.h",
+		"%{prj.name}/src/**.cpp"
+	}
+
+	includedirs
+	{
+		"VoxelEngine/vendor/spdlog/include",
+		"VoxelEngine/src",
+		"%{IncludeDir.ImGui}",
+		"%{IncludeDir.glm}",
+		"%{IncludeDir.tracy}",
+		"%{IncludeDir.GLAD}",
+		"%{IncludeDir.raudio}",
+	}
+
+	filter "system:windows"
+		systemversion "latest"
+
+		defines
+		{
+			"VE_PLATFORM_WINDOWS",
+		}
+	links 
+	{
+		"VoxelEngine",
+	}
+	filter "configurations:Debug"
+		defines {"VE_DEBUG"}
+		runtime "Debug"
+		symbols "on"
+	filter "configurations:Release"
+		defines {"VE_RELEASE"}
+		runtime "Release"
+		optimize "on"
+	filter "configurations:Dist"
+		defines {"VE_DIST"}
+		runtime "Release"
+		optimize "on"
