@@ -1,16 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git -C /mnt/c/Users/shaun/scratch-space/VoxelEngine/VoxelEngine/vendor/GLFW log --oneline -10)",
-      "Bash(git -C /mnt/c/Users/shaun/scratch-space/VoxelEngine/VoxelEngine/vendor/imgui log --oneline -10)",
-      "Bash(git -C /mnt/c/Users/shaun/scratch-space/VoxelEngine/VoxelEngine/vendor/glm log --oneline -10)",
-      "Bash(git -C /mnt/c/Users/shaun/scratch-space/VoxelEngine/VoxelEngine/vendor/tracy log --oneline -10)",
+      "Bash(git -C /mnt/c/Users/shaun/repos/minecraft.cpp/VoxelEngine/vendor/GLFW log --oneline -10)",
+      "Bash(git -C /mnt/c/Users/shaun/repos/minecraft.cpp/VoxelEngine/vendor/imgui log --oneline -10)",
+      "Bash(git -C /mnt/c/Users/shaun/repos/minecraft.cpp/VoxelEngine/vendor/glm log --oneline -10)",
+      "Bash(git -C /mnt/c/Users/shaun/repos/minecraft.cpp/VoxelEngine/vendor/tracy log --oneline -10)",
       "Bash(ls:*)",
       "Bash(git submodule add:*)",
       "Bash(cmake:*)",
       "Bash(git checkout:*)",
       "Bash(echo:*)",
-      "Bash(glxinfo:*)"
+      "Bash(glxinfo:*)",
+      "Bash(cmd.exe /c GenerateProjects.bat)",
+      "Bash(x86_64-w64-mingw32-g++:*)"
     ]
   }
 }

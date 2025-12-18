@@ -118,22 +118,22 @@ elseif(UNIX)
 endif()
 
 # ==============================================================================
-# Tracy (profiler) - header-only with TracyClient.cpp
+# Tracy (profiler)
 # ==============================================================================
-add_library(tracy STATIC
-    VoxelEngine/vendor/tracy/public/TracyClient.cpp
-)
-target_include_directories(tracy PUBLIC
-    VoxelEngine/vendor/tracy/public
-)
-# Disable Tracy by default (enable with -DTRACY_ENABLE=ON)
 option(TRACY_ENABLE "Enable Tracy profiler" OFF)
-if(NOT TRACY_ENABLE)
-    target_compile_definitions(tracy PUBLIC TRACY_ENABLE=0)
-endif()
-# Tracy needs Windows networking/debug libraries
-if(WIN32)
-    target_link_libraries(tracy PRIVATE ws2_32 dbghelp)
+if(TRACY_ENABLE)
+    add_library(tracy STATIC
+        VoxelEngine/vendor/tracy/public/TracyClient.cpp
+    )
+    target_include_directories(tracy PUBLIC VoxelEngine/vendor/tracy/public)
+    if(WIN32)
+        target_link_libraries(tracy PRIVATE ws2_32 dbghelp)
+    endif()
+else()
+    # When disabled, just provide headers (macros become no-ops)
+    add_library(tracy INTERFACE)
+    target_include_directories(tracy INTERFACE VoxelEngine/vendor/tracy/public)
+    target_compile_definitions(tracy INTERFACE TRACY_ENABLE=0)
 endif()
 
 # ==============================================================================

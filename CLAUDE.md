@@ -39,6 +39,24 @@ make -j$(nproc)
 ./bin/MinecraftClone
 ```
 
+### Cross-Compile for Windows (from WSL/Linux using MinGW)
+```bash
+# Install MinGW cross-compiler
+sudo apt install mingw-w64
+
+# Configure and build
+mkdir build-windows && cd build-windows
+cmake .. \
+  -DCMAKE_SYSTEM_NAME=Windows \
+  -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+  -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+  -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
+  -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+
+# Output: bin/MinecraftClone.exe (run from Windows)
+```
+
 ---
 
 ## Project Structure
@@ -245,12 +263,20 @@ Tracy profiler integrated. Look for `VE_PROFILE_FUNCTION` and `VE_PROFILE_SCOPE`
 
 ## Roadmap
 
-See `doc/ROADMAP.md` for the complete development plan covering:
-- Phase 1: Foundation (block interaction, inventory, physics)
-- Phase 2: World (terrain, caves, biomes)
+See `doc/ROADMAP.md` for the complete development plan.
+
+**Already Implemented:**
+- Block interaction (breaking/placing, raycast, hotbar)
+- Heightmap terrain (Perlin noise hills/valleys)
+- Ambient occlusion (per-vertex AO)
+- Distance fog (150-400 block fade)
+
+**Phases:**
+- Phase 1: Foundation (inventory, player physics) - *partially done*
+- Phase 2: World (caves, ores, biomes, trees)
 - Phase 3: Gameplay (crafting, tools, survival)
 - Phase 4: Entities (mobs, items)
-- Phase 5: Environment (lighting, day/night, weather)
+- Phase 5: Environment (lighting, day/night, water)
 - Phase 6: Polish (menus, saving, audio)
 
 ---
@@ -265,4 +291,44 @@ See `doc/ROADMAP.md` for the complete development plan covering:
 
 ---
 
-**Last Updated**: December 17, 2025
+## Claude Agent Notes (For Future Sessions)
+
+**CRITICAL WARNINGS - READ BEFORE MAKING CHANGES:**
+
+1. **Do NOT downgrade GLSL versions without thorough analysis.** The shaders use `gl_BaseInstance` which requires GLSL 4.60 or `GL_ARB_shader_draw_parameters` extension. I incorrectly claimed GLSL 4.30 would work - it doesn't without the extension.
+
+2. **Do NOT modify code to work around build errors.** If cross-compilation fails (e.g., Tracy with MinGW), tell the user to build natively instead of hacking the codebase.
+
+3. **Always verify claims before stating them.** When asked "what's the impact of X?", actually grep/search the code for affected features. Don't guess.
+
+4. **WSL GPU Support:** Mesa's llvmpipe is software rendering. For real GPU:
+   ```bash
+   export GALLIUM_DRIVER=d3d12  # Required for AMD/Intel GPUs in WSL
+   ```
+
+5. **Shader Compatibility Fix:** `drawTerrain.glsl` needs this extension for Mesa compatibility:
+   ```glsl
+   #version 460 core
+   #extension GL_ARB_shader_draw_parameters : require
+   ```
+
+6. **Tracy Profiler:** Disabled by default. pch.h has a guard to default TRACY_ENABLE=0. When building with `-DTRACY_ENABLE=ON`, the guard is bypassed. Tracy ETW code does NOT compile with MinGW.
+
+7. **Build Systems:**
+   - **Windows native**: Use Premake5 + Visual Studio (GenerateProjects.bat) - user must run from Windows terminal.
+   - **Linux/WSL native**: Use CMake (`mkdir build && cd build && cmake .. && make -j$(nproc)`).
+   - **Cross-compile Windows from WSL**: Use CMake with MinGW (see Quick Start section). Works reliably.
+
+8. **NEVER invoke Windows executables from WSL.** Do NOT use `cmd.exe`, `powershell.exe`, or `GenerateProjects.bat` from WSL. This is stupid and doesn't work. Use CMake cross-compilation with MinGW instead, or tell the user to run Windows commands from a Windows terminal themselves.
+
+9. **Current State (Dec 2025):**
+   - Repository: https://github.com/suparious/minecraft.cpp
+   - Submodules point to official upstream repos (glfw/glfw, ocornut/imgui docking branch, etc.)
+   - Premake build files in `VoxelEngine/vendor-build/` for Windows builds
+   - Linux segfaults on startup - needs debugging (may be WSL/Mesa issue)
+
+**Trust but verify. Don't make changes you can't justify with evidence from the codebase.**
+
+---
+
+**Last Updated**: December 18, 2025
