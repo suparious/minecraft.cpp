@@ -19,7 +19,9 @@
       "Bash(GALLIUM_DRIVER=d3d12 gdb:*)",
       "Bash(GALLIUM_DRIVER=d3d12 glxinfo:*)",
       "Bash(chmod:*)",
-      "Bash(./release.sh:*)"
+      "Bash(./release.sh:*)",
+      "Bash(/mnt/c/Users/shaun/repos/minecraft.cpp/release.sh dev)",
+      "Bash(bash release.sh:*)"
     ]
   }
 }
