@@ -306,11 +306,13 @@ See `doc/ROADMAP.md` for the complete development plan.
    export GALLIUM_DRIVER=d3d12  # Required for AMD/Intel GPUs in WSL
    ```
 
-5. **Shader Compatibility Fix:** `drawTerrain.glsl` needs this extension for Mesa compatibility:
+5. **Shader Compatibility Fix:** `drawTerrain.glsl` uses GLSL 4.50 with ARB extension for broad Mesa compatibility:
    ```glsl
-   #version 460 core
+   #version 450 core
    #extension GL_ARB_shader_draw_parameters : require
+   #define gl_BaseInstance gl_BaseInstanceARB
    ```
+   Note: GLSL 4.60 provides `gl_BaseInstance` directly. GLSL 4.50 + extension provides `gl_BaseInstanceARB`.
 
 6. **Tracy Profiler:** Disabled by default. pch.h has a guard to default TRACY_ENABLE=0. When building with `-DTRACY_ENABLE=ON`, the guard is bypassed. Tracy ETW code does NOT compile with MinGW.
 
@@ -325,7 +327,14 @@ See `doc/ROADMAP.md` for the complete development plan.
    - Repository: https://github.com/suparious/minecraft.cpp
    - Submodules point to official upstream repos (glfw/glfw, ocornut/imgui docking branch, etc.)
    - Premake build files in `VoxelEngine/vendor-build/` for Windows builds
-   - Linux segfaults on startup - needs debugging (may be WSL/Mesa issue)
+   - MinGW cross-compile uses `-static` linking to avoid DLL dependencies
+
+10. **WSL2 AMD Driver Bug:** The D3D12 OpenGL translation on WSL2 with AMD GPUs crashes in `amdxc64.so` (AMD shader compiler). This is a driver bug, not fixable in code. Workarounds:
+    - Use software rendering (llvmpipe) - slow but works
+    - Build natively on Windows instead of WSL2
+    - ImGui is disabled on Linux to avoid related crashes
+
+11. **ImGui Compatibility:** The docking branch (Dec 2025) has `ImGuiBackendFlags_RendererHasTextures` for dynamic font atlas. This crashes on WSL2's D3D12 layer. ImGui layer is conditionally disabled on Linux in `Application.cpp`.
 
 **Trust but verify. Don't make changes you can't justify with evidence from the codebase.**
 

@@ -372,4 +372,8 @@ FodyWeavers.xsd
 # CMake build directories
 build/
 build-windows/
+.build/
 CMakeUserPresets.json
+
+# Release artifacts
+releases/

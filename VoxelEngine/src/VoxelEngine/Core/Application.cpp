@@ -18,8 +18,12 @@ Application::Application()
 
     Renderer::Init();
 
+#ifndef VE_PLATFORM_LINUX
+    // ImGui crashes on WSL2's D3D12 OpenGL translation layer due to
+    // incompatibility with the new dynamic font atlas feature
     PushLayer<ImGuiLayer>();
     m_ImGuiLayer = GetLayer<ImGuiLayer>();
+#endif
 }
 
 Application::~Application() { VE_PROFILE_FUNCTION; }

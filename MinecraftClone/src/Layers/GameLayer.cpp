@@ -132,7 +132,10 @@ void GameLayer::OnUpdate(VoxelEngine::Timestep ts)
         glDeleteSync(sync);
     }
 
-    if (*m_DoesCurrentFrameHaveExplosion) {
+    // Cache explosion state before resetting - used for conditional dispatch
+    bool hadExplosionThisFrame = *m_DoesCurrentFrameHaveExplosion;
+
+    if (hadExplosionThisFrame) {
         if (!IsSoundPlaying(m_ExplosionSounds[m_CurrentExplosionSound])) {
             PlaySound(m_ExplosionSounds[m_CurrentExplosionSound]);
         }
@@ -152,14 +155,16 @@ void GameLayer::OnUpdate(VoxelEngine::Timestep ts)
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     }
 
-    {
+    // Only clear explosions if there were any this frame (perf optimization)
+    if (hadExplosionThisFrame) {
         VE_PROFILE_SCOPE("Compute shader: Clear explosions");
         m_ShaderLibrary.Get("clearExplosions")->Bind();
         glDispatchCompute(WORLD_WIDTH, WORLD_HEIGHT, WORLD_WIDTH);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     }
 
-    {
+    // Only regenerate quads if world changed (perf optimization)
+    if (*m_ShouldRedrawWorld) {
         VE_PROFILE_SCOPE("Compute Shader: Generate quads");
         m_ShaderLibrary.Get("generateQuads")->Bind();
         glDispatchCompute(WORLD_WIDTH, WORLD_HEIGHT, WORLD_WIDTH);

@@ -1,6 +1,8 @@
 #type vertex
-#version 460 core
+#version 450 core
 #extension GL_ARB_shader_draw_parameters : require
+// In GLSL < 4.60, the extension provides gl_BaseInstanceARB instead of gl_BaseInstance
+#define gl_BaseInstance gl_BaseInstanceARB
 #includeGlobalSource
 layout(std430, binding = 0) readonly buffer buffer0
 {
