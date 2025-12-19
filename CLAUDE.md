@@ -30,13 +30,13 @@ cd minecraft.cpp
 # Install dependencies (Ubuntu/Debian)
 sudo apt install build-essential cmake libglfw3-dev libgl1-mesa-dev libx11-dev libxrandr-dev libxi-dev libxxf86vm-dev
 
-# Build
-mkdir build && cd build
-cmake ..
+# Build (use .build/ directory - hidden, not build/)
+mkdir -p .build/linux && cd .build/linux
+cmake ../..
 make -j$(nproc)
 
-# Run (from project root, needs assets/)
-./bin/MinecraftClone
+# Run from the bin directory (assets are copied there)
+cd bin && ./MinecraftClone
 ```
 
 ### Cross-Compile for Windows (from WSL/Linux using MinGW)
@@ -44,9 +44,9 @@ make -j$(nproc)
 # Install MinGW cross-compiler
 sudo apt install mingw-w64
 
-# Configure and build
-mkdir build-windows && cd build-windows
-cmake .. \
+# Configure and build (use .build/ directory - hidden, not build-windows/)
+mkdir -p .build/windows && cd .build/windows
+cmake ../.. \
   -DCMAKE_SYSTEM_NAME=Windows \
   -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
   -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
@@ -54,7 +54,17 @@ cmake .. \
   -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 
-# Output: bin/MinecraftClone.exe (run from Windows)
+# Output: bin/MinecraftClone.exe (run from Windows with bin/assets/)
+```
+
+### Release Builds (Recommended)
+```bash
+# Build both Windows and Linux, package into releases/
+./release.sh v1.2.0
+
+# Output:
+#   releases/minecraft.cpp-v1.2.0-windows.zip
+#   releases/minecraft.cpp-v1.2.0-linux.tar.gz
 ```
 
 ---
@@ -73,7 +83,7 @@ VoxelEngine/
 │   │       ├── Events/         # Event system
 │   │       ├── Renderer/       # OpenGL rendering, shaders, textures
 │   │       ├── ImGui/          # Debug UI
-│   │       └── Debug/          # Profiling
+│   │       └── Debug/          # Profiling (GpuProfiler)
 │   └── vendor/                 # Dependencies (git submodules)
 │       ├── GLFW/               # Window/input
 │       ├── GLAD/               # OpenGL loader
@@ -138,6 +148,8 @@ TNT Physics:
 - `Shader` / `ShaderLibrary` - GLSL compilation and management
 - `Buffer` / `StorageBuffer` - GPU data (VBO, SSBO)
 - `GameLayer` - Main game logic, chunk management, rendering
+- `GpuProfiler` - OpenGL timer query-based GPU profiling (singleton)
+- `DebugOverlay` - ImGui-based debug UI with profiler display
 
 ---
 
@@ -176,6 +188,7 @@ constexpr int HOW_MANY_TNT_TO_SPAWN = 10'000'000;
 - Distance fog (150-400 block fade)
 - Basic audio (explosions, fuse)
 - Debug overlay (ImGui, Windows only)
+- GPU profiler (F3 toggle, timer queries for all compute/draw operations)
 
 ### NOT Implemented (See ROADMAP.md)
 - Inventory/crafting
@@ -255,7 +268,45 @@ git submodule update --init --recursive
 ### OpenGL Errors
 Run in Debug configuration - errors logged to console via `spdlog`.
 
-### Performance Profiling
+### GPU Profiling (F3)
+Press **F3** to toggle the debug overlay with GPU profiler. Uses OpenGL timer queries to measure actual GPU time:
+
+**How it works:**
+- `GpuProfiler::Get().BeginQuery("name")` / `EndQuery("name")` wrap GPU operations
+- Reads previous frame's results to avoid pipeline stalls
+- Exponential moving average for smooth display
+- Color-coded: green (<5ms), yellow (5-10ms), red (>10ms)
+
+**Profiled operations:**
+| Query Name | Location | Description |
+|------------|----------|-------------|
+| explodeTnts | GameLayer.cpp | TNT fuse timer compute shader |
+| propagateExplosions | GameLayer.cpp | Explosion BFS (8 iterations) |
+| updateTntTransforms | GameLayer.cpp | TNT physics/velocity compute |
+| clearExplosions | GameLayer.cpp | Reset explosion tracking |
+| generateQuads | GameLayer.cpp | Mesh regeneration compute |
+| selectBlock | GameLayer.cpp | Raycast block selection |
+| drawTerrain | GameLayer.cpp | Multi-draw indirect terrain |
+| drawTnt | GameLayer.cpp | TNT instanced rendering |
+
+**Adding new profiling points:**
+```cpp
+#include <VoxelEngine/Debug/GpuProfiler.h>
+
+// Option 1: Manual begin/end
+GpuProfiler::Get().BeginQuery("myOperation");
+glDispatchCompute(...);
+glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+GpuProfiler::Get().EndQuery("myOperation");
+
+// Option 2: RAII scope (auto end on scope exit)
+{
+    VE_GPU_PROFILE_SCOPE("myOperation");
+    glDispatchCompute(...);
+}
+```
+
+### CPU Profiling (Tracy)
 Tracy profiler integrated. Look for `VE_PROFILE_FUNCTION` and `VE_PROFILE_SCOPE` macros.
 
 ### Common Issues
@@ -322,8 +373,10 @@ See `doc/ROADMAP.md` for the complete development plan.
 
 7. **Build Systems:**
    - **Windows native**: Use Premake5 + Visual Studio (GenerateProjects.bat) - user must run from Windows terminal.
-   - **Linux/WSL native**: Use CMake (`mkdir build && cd build && cmake .. && make -j$(nproc)`).
-   - **Cross-compile Windows from WSL**: Use CMake with MinGW (see Quick Start section). Works reliably.
+   - **Linux/WSL native**: Use CMake with `.build/linux/` directory.
+   - **Cross-compile Windows from WSL**: Use CMake with MinGW in `.build/windows/` directory.
+   - **Release builds**: Use `./release.sh vX.Y.Z` - builds both platforms and packages to `releases/`.
+   - **IMPORTANT**: NEVER create `build/` or `build-windows/` directories in the project root. Always use `.build/` (hidden) or the release script.
 
 8. **NEVER invoke Windows executables from WSL.** Do NOT use `cmd.exe`, `powershell.exe`, or `GenerateProjects.bat` from WSL. This is stupid and doesn't work. Use CMake cross-compilation with MinGW instead, or tell the user to run Windows commands from a Windows terminal themselves.
 
@@ -333,6 +386,7 @@ See `doc/ROADMAP.md` for the complete development plan.
    - Submodules point to official upstream repos (glfw/glfw, ocornut/imgui docking branch, etc.)
    - Premake build files in `VoxelEngine/vendor-build/` for Windows builds
    - MinGW cross-compile uses `-static` linking to avoid DLL dependencies
+   - GPU profiler added: `GpuProfiler.h` singleton with timer queries, visible via F3 debug overlay
 
 10. **WSL2 AMD Driver Bug:** The D3D12 OpenGL translation on WSL2 with AMD GPUs crashes in `amdxc64.so` (AMD shader compiler). This is a driver bug, not fixable in code. Workarounds:
     - Use software rendering (llvmpipe) - slow but works
@@ -347,4 +401,4 @@ See `doc/ROADMAP.md` for the complete development plan.
 
 ---
 
-**Last Updated**: December 19, 2025 (v1.2.0 release)
+**Last Updated**: December 19, 2025 (GPU profiler added, keybinds updated)

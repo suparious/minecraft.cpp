@@ -5,6 +5,7 @@
 
 #include "../Overlays/DebugOverlay.h"
 #include "GameConfig.h"
+#include <VoxelEngine/Debug/GpuProfiler.h>
 
 GameLayer::GameLayer()
     : Layer("GameLayer")
@@ -57,10 +58,14 @@ void GameLayer::OnAttach()
     application.GetWindow().SetMaximized(true);
     application.GetWindow().SetCursorVisibility(false);
     application.PushLayer<DebugOverlay>();
+
+    // Initialize GPU profiler
+    VoxelEngine::GpuProfiler::Get().Init();
 }
 void GameLayer::OnUpdate(VoxelEngine::Timestep ts)
 {
     VE_PROFILE_FUNCTION;
+    VoxelEngine::GpuProfiler::Get().BeginFrame();
 
     {
         VE_PROFILE_SCOPE("Key pooling");
@@ -84,16 +89,19 @@ void GameLayer::OnUpdate(VoxelEngine::Timestep ts)
 
     {
         VE_PROFILE_SCOPE("Compute shader: Tnt explosion timer decrease");
+        VoxelEngine::GpuProfiler::Get().BeginQuery("explodeTnts");
         auto updateTntTransformsCompute = m_ShaderLibrary.Get("explodeTnts");
         updateTntTransformsCompute->Bind();
         updateTntTransformsCompute->UploadUniformFloat("u_DeltaTime", ts);
         glDispatchCompute(ceil(TNT_COUNT / 256.0f), 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        VoxelEngine::GpuProfiler::Get().EndQuery("explodeTnts");
     }
     auto propagateExplosions = m_ShaderLibrary.Get("propagateExplosions");
     propagateExplosions->Bind();
     {
         VE_PROFILE_SCOPE("Compute shader: propagate explosions");
+        VoxelEngine::GpuProfiler::Get().BeginQuery("propagateExplosions");
         propagateExplosions->UploadUniformFloat3("u_Offset", { 0, 0, 0 });
         glDispatchCompute(HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT,
             HALF_WORLD_WIDTH);
@@ -126,6 +134,7 @@ void GameLayer::OnUpdate(VoxelEngine::Timestep ts)
         glDispatchCompute(HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT,
             HALF_WORLD_WIDTH);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        VoxelEngine::GpuProfiler::Get().EndQuery("propagateExplosions");
         GLsync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
         float secondsToWait = 1.0f;
         glClientWaitSync(sync, 0, secondsToWait * 1000000000);
@@ -148,27 +157,33 @@ void GameLayer::OnUpdate(VoxelEngine::Timestep ts)
 
     {
         VE_PROFILE_SCOPE("Compute shader: Update tnt transforms");
+        VoxelEngine::GpuProfiler::Get().BeginQuery("updateTntTransforms");
         auto updateTntTransformsCompute = m_ShaderLibrary.Get("updateTntTransforms");
         updateTntTransformsCompute->Bind();
         updateTntTransformsCompute->UploadUniformFloat("u_DeltaTime", ts);
         glDispatchCompute(ceil(TNT_COUNT / 256.0f), 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        VoxelEngine::GpuProfiler::Get().EndQuery("updateTntTransforms");
     }
 
     // Only clear explosions if there were any this frame (perf optimization)
     if (hadExplosionThisFrame) {
         VE_PROFILE_SCOPE("Compute shader: Clear explosions");
+        VoxelEngine::GpuProfiler::Get().BeginQuery("clearExplosions");
         m_ShaderLibrary.Get("clearExplosions")->Bind();
         glDispatchCompute(WORLD_WIDTH, WORLD_HEIGHT, WORLD_WIDTH);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        VoxelEngine::GpuProfiler::Get().EndQuery("clearExplosions");
     }
 
     // Only regenerate quads if world changed (perf optimization)
     if (*m_ShouldRedrawWorld) {
         VE_PROFILE_SCOPE("Compute Shader: Generate quads");
+        VoxelEngine::GpuProfiler::Get().BeginQuery("generateQuads");
         m_ShaderLibrary.Get("generateQuads")->Bind();
         glDispatchCompute(WORLD_WIDTH, WORLD_HEIGHT, WORLD_WIDTH);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        VoxelEngine::GpuProfiler::Get().EndQuery("generateQuads");
         GLsync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
         float secondsToWait = 1.0f;
         glClientWaitSync(sync, 0, secondsToWait * 1000000000);
@@ -177,12 +192,14 @@ void GameLayer::OnUpdate(VoxelEngine::Timestep ts)
 
     {
         VE_PROFILE_SCOPE("Compute shader: Select block");
+        VoxelEngine::GpuProfiler::Get().BeginQuery("selectBlock");
         auto selectBlock = m_ShaderLibrary.Get("selectBlock");
         selectBlock->Bind();
         selectBlock->UploadUniformFloat3("u_CameraPos", m_CameraPosition);
         selectBlock->UploadUniformFloat3("u_RayDirection", m_Camera.GetFront());
         glDispatchCompute(1, 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        VoxelEngine::GpuProfiler::Get().EndQuery("selectBlock");
     }
 
     if (*m_ShouldRedrawWorld) {
@@ -232,12 +249,19 @@ void GameLayer::OnRender()
         VoxelEngine::Renderer::Submit(
             drawTerrainShader,
             glm::translate(glm::mat4(1), glm::vec3(0, 0, 0)));
+
+        VoxelEngine::GpuProfiler::Get().BeginQuery("drawTerrain");
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, TOTAL_CHUNKS, 0);
+        VoxelEngine::GpuProfiler::Get().EndQuery("drawTerrain");
 
         VoxelEngine::Renderer::Submit(
             m_ShaderLibrary.Get("tntInstancing"),
             glm::translate(glm::mat4(1), glm::vec3(0, 0, 0)));
+
+        VoxelEngine::GpuProfiler::Get().BeginQuery("drawTnt");
         glDrawArrays(GL_POINTS, 0, TNT_COUNT);
+        VoxelEngine::GpuProfiler::Get().EndQuery("drawTnt");
+
         VoxelEngine::Renderer::EndScene();
     }
 }
@@ -290,17 +314,13 @@ void GameLayer::OnEvent(VoxelEngine::Event& event)
                 m_CurrentBlockType = m_HotbarSlots[m_SelectedHotbarSlot];
                 return true;
             }
-            // Speed controls moved to F1-F3
-            if (e.GetKeyCode() == VE_KEY_F1) {
+            // Speed controls: [ for slow (walk), ] for fast (sprint)
+            if (e.GetKeyCode() == VE_KEY_LEFT_BRACKET) {
                 m_CameraMoveSpeed = 5;
                 return true;
             }
-            if (e.GetKeyCode() == VE_KEY_F2) {
+            if (e.GetKeyCode() == VE_KEY_RIGHT_BRACKET) {
                 m_CameraMoveSpeed = 50;
-                return true;
-            }
-            if (e.GetKeyCode() == VE_KEY_F3) {
-                m_CameraMoveSpeed = 500;
                 return true;
             }
             return false;

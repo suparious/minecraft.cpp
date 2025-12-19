@@ -1,8 +1,9 @@
 # VoxelEngine - Development Roadmap
 
-**Document Version**: 1.0
+**Document Version**: 1.2
 **Created**: December 17, 2025
-**Status**: Planning Phase
+**Updated**: December 19, 2025
+**Status**: Active Development
 
 ---
 
@@ -17,7 +18,7 @@ VoxelEngine is a **GPU-accelerated voxel engine** written in C++ with OpenGL com
 | **Gameplay** | Missing | No inventory, crafting, survival mechanics |
 | **Entities** | Partial | Only TNT, no mobs |
 | **Audio** | Partial | Explosions only |
-| **UI** | Missing | Debug overlay only |
+| **UI** | Partial | Debug overlay with GPU profiler |
 
 ### Technical Highlights
 - ~17,500 lines of C++ code
@@ -25,6 +26,7 @@ VoxelEngine is a **GPU-accelerated voxel engine** written in C++ with OpenGL com
 - Multi-draw indirect rendering (single draw call for all chunks)
 - Greedy meshing for optimized geometry
 - Handles 10M TNT entities at interactive framerates
+- GPU profiler with timer queries (F3 debug overlay)
 
 ---
 
@@ -436,6 +438,10 @@ Start with **Phase 1.1 (Block Interaction)** because:
 
 ## Changelog
 
+- **v1.2** (2025-12-19):
+  - Added GPU profiler with OpenGL timer queries (GpuProfiler.h)
+  - Debug overlay now shows real-time GPU timing for all compute shaders and draw calls
+  - Press F3 to toggle debug overlay with color-coded performance metrics
 - **v1.1** (2025-12-17):
   - Added Game Tick System (2.0) and Block Update System (2.0.1)
   - Marked Block Interaction System (1.1) as IMPLEMENTED

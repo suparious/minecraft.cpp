@@ -1,5 +1,6 @@
 #include "DebugOverlay.h"
 #include "../Layers/GameLayer.h"
+#include <VoxelEngine/Debug/GpuProfiler.h>
 
 DebugOverlay::DebugOverlay()
 {
@@ -15,6 +16,14 @@ void DebugOverlay::OnDetach()
 }
 void DebugOverlay::OnUpdate(VoxelEngine::Timestep ts)
 {
+    m_FrameTime = ts.GetMilliseconds();
+    m_FrameTimeAccum += m_FrameTime;
+    m_FrameCount++;
+    if (m_FrameCount >= 30) {
+        m_AvgFrameTime = m_FrameTimeAccum / m_FrameCount;
+        m_FrameTimeAccum = 0.0f;
+        m_FrameCount = 0;
+    }
 }
 void DebugOverlay::OnImGuiRender()
 {
@@ -99,6 +108,14 @@ void DebugOverlay::OnImGuiRender()
         }
     }
 
+    // FPS counter (always visible in top-left)
+    {
+        float fps = m_AvgFrameTime > 0 ? 1000.0f / m_AvgFrameTime : 0.0f;
+        char fpsText[64];
+        snprintf(fpsText, sizeof(fpsText), "%.1f FPS (%.2f ms)", fps, m_AvgFrameTime);
+        drawList->AddText(ImVec2(10, 10), IM_COL32(255, 255, 255, 255), fpsText);
+    }
+
     // Debug menu (toggled with F3)
     if (m_Visible) {
         GameLayer* gameLayer = VoxelEngine::Application::Get().GetLayer<GameLayer>();
@@ -119,6 +136,31 @@ void DebugOverlay::OnImGuiRender()
             ImGui::Begin("Debug Menu");
             ImGui::Text("%s (%.1f / %.1f)", directionLookingAt.c_str(), camera.GetYaw(), camera.GetPitch());
             ImGui::Text("Position X:%.0f, Y:%.0f, Z:%.0f", cameraPosition.x, cameraPosition.y, cameraPosition.z);
+            ImGui::End();
+        }
+
+        // GPU Profiler window
+        auto& profiler = VoxelEngine::GpuProfiler::Get();
+        if (profiler.IsSupported()) {
+            ImGui::Begin("GPU Profiler");
+            ImGui::Text("GPU Timings (avg ms):");
+            ImGui::Separator();
+
+            float totalGpuTime = 0.0f;
+            auto queryNames = profiler.GetQueryNames();
+            for (const auto& name : queryNames) {
+                float avgMs = profiler.GetAvgTimeMs(name);
+                totalGpuTime += avgMs;
+
+                // Color code based on time
+                ImVec4 color = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);  // green
+                if (avgMs > 5.0f) color = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);  // yellow
+                if (avgMs > 10.0f) color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);  // red
+
+                ImGui::TextColored(color, "%-20s: %6.2f ms", name.c_str(), avgMs);
+            }
+            ImGui::Separator();
+            ImGui::Text("Total GPU: %.2f ms", totalGpuTime);
             ImGui::End();
         }
     }

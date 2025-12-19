@@ -14,6 +14,7 @@ A high-performance voxel engine built with C++23 and OpenGL 4.3+ compute shaders
 - **Block interaction** - Place and break blocks with raycast selection
 - **Perlin noise terrain** - Heightmap-based hills and valleys
 - **First-person controls** - WASD movement + mouse look
+- **GPU profiler** - Real-time timing for compute shaders and draw calls (F3)
 
 ## Quick Start
 
@@ -40,12 +41,12 @@ sudo apt install build-essential cmake libglfw3-dev libgl1-mesa-dev \
 # Clone and build
 git clone --recursive https://github.com/suparious/minecraft.cpp.git
 cd minecraft.cpp
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
+mkdir -p .build/linux && cd .build/linux
+cmake ../.. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 
-# Run (from build directory)
-./bin/MinecraftClone
+# Run
+cd bin && ./MinecraftClone
 ```
 
 ### Cross-Compile for Windows (from Linux/WSL)
@@ -55,15 +56,15 @@ make -j$(nproc)
 sudo apt install mingw-w64
 
 # Build
-mkdir build-windows && cd build-windows
-cmake .. \
+mkdir -p .build/windows && cd .build/windows
+cmake ../.. \
     -DCMAKE_SYSTEM_NAME=Windows \
     -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
     -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
     -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 
-# Output: bin/MinecraftClone.exe (run on Windows)
+# Output: bin/MinecraftClone.exe (copy to Windows with bin/assets/)
 ```
 
 ## Controls
@@ -77,7 +78,10 @@ make -j$(nproc)
 | Left Click | Break block / Activate TNT |
 | Right Click | Place block |
 | 1-9 | Select hotbar slot |
-| F1/F2/F3 | Movement speed (slow/normal/fast) |
+| [ | Slow movement (walk) |
+| ] | Fast movement (sprint) |
+| F3 | Toggle debug overlay (GPU profiler) |
+| TAB | Toggle mouse cursor |
 | ESC | Release mouse |
 
 ## Configuration
@@ -146,6 +150,35 @@ Pre-built binaries are available on the [Releases page](https://github.com/supar
 | Debug | Development with OpenGL error logging |
 | Release | Optimized with some debug symbols |
 | Dist | Maximum performance, no debug overhead |
+
+## Debug & Profiling
+
+Press **F3** to toggle the debug overlay, which includes:
+
+- **FPS counter** - Always visible in top-left corner
+- **Camera position** - XYZ coordinates and facing direction
+- **GPU Profiler** - Real-time timing for all GPU operations
+
+### GPU Profiler
+
+The GPU profiler uses OpenGL timer queries to measure actual GPU execution time (not CPU time). Timings are color-coded:
+- **Green**: < 5ms (good)
+- **Yellow**: 5-10ms (warning)
+- **Red**: > 10ms (bottleneck)
+
+Profiled operations include:
+| Operation | Description |
+|-----------|-------------|
+| explodeTnts | TNT fuse timer updates |
+| propagateExplosions | Explosion BFS (8 passes) |
+| updateTntTransforms | TNT physics and position |
+| clearExplosions | Reset explosion tracking |
+| generateQuads | Mesh regeneration |
+| selectBlock | Raycast block selection |
+| drawTerrain | Multi-draw terrain render |
+| drawTnt | TNT entity rendering |
+
+The profiler has minimal overhead (~0.1ms per frame) as it reads the previous frame's results to avoid GPU pipeline stalls.
 
 ## Requirements
 

@@ -14,5 +14,8 @@ public:
 
 private:
     bool m_Visible = false;
-    // VoxelEngine::OrthographicCamera m_Camera;
+    float m_FrameTime = 0.0f;
+    float m_FrameTimeAccum = 0.0f;
+    int m_FrameCount = 0;
+    float m_AvgFrameTime = 0.0f;
 };

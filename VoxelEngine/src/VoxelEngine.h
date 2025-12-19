@@ -29,3 +29,7 @@
 #include "VoxelEngine/Renderer/OrthographicCamera.h"
 #include "VoxelEngine/Renderer/PerspectiveCamera.h"
 //-------------------------------------------------
+
+//----Debug----------------------------------------
+#include "VoxelEngine/Debug/GpuProfiler.h"
+//-------------------------------------------------
