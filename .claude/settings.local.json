@@ -12,7 +12,14 @@
       "Bash(echo:*)",
       "Bash(glxinfo:*)",
       "Bash(cmd.exe /c GenerateProjects.bat)",
-      "Bash(x86_64-w64-mingw32-g++:*)"
+      "Bash(x86_64-w64-mingw32-g++:*)",
+      "Bash(gdb:*)",
+      "Bash(make:*)",
+      "Bash(GALLIUM_DRIVER=d3d12 timeout 5 ./MinecraftClone:*)",
+      "Bash(GALLIUM_DRIVER=d3d12 gdb:*)",
+      "Bash(GALLIUM_DRIVER=d3d12 glxinfo:*)",
+      "Bash(chmod:*)",
+      "Bash(./release.sh:*)"
     ]
   }
 }
