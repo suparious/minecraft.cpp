@@ -72,10 +72,12 @@ make -j$(nproc)
 |-----|--------|
 | WASD | Move |
 | Mouse | Look around |
+| Space | Move up |
+| Shift | Move down |
 | Left Click | Break block / Activate TNT |
 | Right Click | Place block |
 | 1-9 | Select hotbar slot |
-| 1/2/3 | Movement speed (slow/normal/fast) |
+| F1/F2/F3 | Movement speed (slow/normal/fast) |
 | ESC | Release mouse |
 
 ## Configuration
@@ -128,12 +130,14 @@ To use a different texture pack:
 To build release packages for both Windows and Linux:
 
 ```bash
-./release.sh v1.0.0
+./release.sh v1.2.0
 ```
 
 This creates:
-- `releases/minecraft.cpp-v1.0.0-windows.zip` - Windows executable + assets
-- `releases/minecraft.cpp-v1.0.0-linux.tar.gz` - Linux executable + assets
+- `releases/minecraft.cpp-v1.2.0-windows.zip` - Windows executable + assets
+- `releases/minecraft.cpp-v1.2.0-linux.tar.gz` - Linux executable + assets
+
+Pre-built binaries are available on the [Releases page](https://github.com/suparious/minecraft.cpp/releases).
 
 ## Build Configurations
 

@@ -13,7 +13,7 @@
 ```bash
 # Clone with submodules
 git clone --recursive https://github.com/suparious/minecraft.cpp.git
-cd VoxelEngine
+cd minecraft.cpp
 
 # Generate VS solution
 ./GenerateProjects.bat
@@ -25,7 +25,7 @@ cd VoxelEngine
 ```bash
 # Clone with submodules
 git clone --recursive https://github.com/suparious/minecraft.cpp.git
-cd VoxelEngine
+cd minecraft.cpp
 
 # Install dependencies (Ubuntu/Debian)
 sudo apt install build-essential cmake libglfw3-dev libgl1-mesa-dev libx11-dev libxrandr-dev libxi-dev libxxf86vm-dev
@@ -104,6 +104,7 @@ VoxelEngine/
 │   └── ROADMAP.md             # Development roadmap
 ├── premake5.lua               # Windows build config
 ├── CMakeLists.txt             # Linux/WSL build config
+├── release.sh                 # Build script for releases
 └── CLAUDE.md                  # This file
 ```
 
@@ -167,14 +168,16 @@ constexpr int HOW_MANY_TNT_TO_SPAWN = 10'000'000;
 
 ### Implemented
 - Block rendering with texture atlas
-- Flat terrain generation (grass/dirt/stone/bedrock)
+- Perlin noise terrain generation (hills/valleys with grass/dirt/stone/bedrock)
+- Block placement and breaking (raycast selection, hotbar)
 - TNT explosion physics (10M entities)
 - First-person camera movement (WASD + mouse)
+- Ambient occlusion (per-vertex AO)
+- Distance fog (150-400 block fade)
 - Basic audio (explosions, fuse)
-- Debug overlay (ImGui)
+- Debug overlay (ImGui, Windows only)
 
 ### NOT Implemented (See ROADMAP.md)
-- Block placement/breaking (manual)
 - Inventory/crafting
 - Mobs/entities (except TNT)
 - Caves, biomes, trees
@@ -200,7 +203,8 @@ constexpr int HOW_MANY_TNT_TO_SPAWN = 10'000'000;
 
 ### Modifying World Generation
 - Edit `assets/shaders/compute/generateBlocks.glsl`
-- Uses 3D dispatch: one thread per block
+- Uses 256 threads per chunk (16x16 local workgroup), one thread per X-Z column
+- Each thread generates all Y blocks in its column
 - Output to chunk SSBO (Storage Buffer)
 
 ### Platform-Specific Code
@@ -295,7 +299,7 @@ See `doc/ROADMAP.md` for the complete development plan.
 
 **CRITICAL WARNINGS - READ BEFORE MAKING CHANGES:**
 
-1. **Do NOT downgrade GLSL versions without thorough analysis.** The shaders use `gl_BaseInstance` which requires GLSL 4.60 or `GL_ARB_shader_draw_parameters` extension. I incorrectly claimed GLSL 4.30 would work - it doesn't without the extension.
+1. **GLSL Version Compatibility (RESOLVED):** We now use GLSL 4.50 + `GL_ARB_shader_draw_parameters` extension with a `#define gl_BaseInstance gl_BaseInstanceARB` for broad driver compatibility. This was the correct fix for Mesa/WSL2 support.
 
 2. **Do NOT modify code to work around build errors.** If cross-compilation fails (e.g., Tracy with MinGW), tell the user to build natively instead of hacking the codebase.
 
@@ -325,6 +329,7 @@ See `doc/ROADMAP.md` for the complete development plan.
 
 9. **Current State (Dec 2025):**
    - Repository: https://github.com/suparious/minecraft.cpp
+   - Latest release: **v1.2.0** (performance optimizations, cross-platform fixes)
    - Submodules point to official upstream repos (glfw/glfw, ocornut/imgui docking branch, etc.)
    - Premake build files in `VoxelEngine/vendor-build/` for Windows builds
    - MinGW cross-compile uses `-static` linking to avoid DLL dependencies
@@ -336,8 +341,10 @@ See `doc/ROADMAP.md` for the complete development plan.
 
 11. **ImGui Compatibility:** The docking branch (Dec 2025) has `ImGuiBackendFlags_RendererHasTextures` for dynamic font atlas. This crashes on WSL2's D3D12 layer. ImGui layer is conditionally disabled on Linux in `Application.cpp`.
 
+12. **Release Workflow:** Use `./release.sh v1.x.x` to build both Windows and Linux packages. Creates zip/tarball in `releases/` directory. Then use `gh release create` to publish to GitHub.
+
 **Trust but verify. Don't make changes you can't justify with evidence from the codebase.**
 
 ---
 
-**Last Updated**: December 18, 2025
+**Last Updated**: December 19, 2025 (v1.2.0 release)
