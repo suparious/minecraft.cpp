@@ -377,3 +377,6 @@ CMakeUserPresets.json
 
 # Release artifacts
 releases/
+
+# Claude Code local settings (workstation-specific)
+.claude/settings.local.json
